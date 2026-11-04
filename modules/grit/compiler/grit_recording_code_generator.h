@@ -62,6 +62,7 @@ public:
 	virtual void set_signature(const String &p_signature) override;
 #endif
 	virtual void set_initial_line(int p_line) override;
+	virtual void set_lambda(bool p_lambda) override { nesting.set_lambda(p_lambda); }
 
 	virtual void write_type_adjust(const Address &p_target, Variant::Type p_new_type) override;
 	virtual void write_unary_operator(const Address &p_target, Variant::Operator p_operator, const Address &p_left_operand) override;

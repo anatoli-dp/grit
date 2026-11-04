@@ -1,0 +1,23 @@
+diff --git a/modules/gdscript/gdscript_codegen.h b/modules/gdscript/gdscript_codegen.h
+--- a/modules/gdscript/gdscript_codegen.h
++++ b/modules/gdscript/gdscript_codegen.h
+@@ -88,6 +88,8 @@
+ 	virtual void set_signature(const String &p_signature) = 0;
+ #endif
+ 	virtual void set_initial_line(int p_line) = 0;
++	// Called right after the generator is created: true when it compiles a lambda of the function being compiled.
++	virtual void set_lambda(bool p_lambda) {}
+ 
+ 	virtual void write_type_adjust(const Address &p_target, Variant::Type p_new_type) = 0;
+ 	virtual void write_unary_operator(const Address &p_target, Variant::Operator p_operator, const Address &p_left_operand) = 0;
+diff --git a/modules/gdscript/gdscript_compiler.cpp b/modules/gdscript/gdscript_compiler.cpp
+--- a/modules/gdscript/gdscript_compiler.cpp
++++ b/modules/gdscript/gdscript_compiler.cpp
+@@ -2301,6 +2301,7 @@
+ 	r_error = OK;
+ 	CodeGen codegen;
+ 	codegen.generator = _create_code_generator();
++	codegen.generator->set_lambda(p_for_lambda);
+ 
+ 	codegen.class_node = p_class;
+ 	codegen.script = p_script;
