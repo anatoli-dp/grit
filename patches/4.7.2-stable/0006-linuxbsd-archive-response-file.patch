@@ -1,0 +1,14 @@
+diff --git a/platform/linuxbsd/detect.py b/platform/linuxbsd/detect.py
+--- a/platform/linuxbsd/detect.py
++++ b/platform/linuxbsd/detect.py
+@@ -235,6 +235,10 @@
+ 
+     env.Append(CCFLAGS=["-pipe"])
+ 
++    # In case the command line to AR is too long, use a response file.
++    env["ARCOM_ORIG"] = env["ARCOM"]
++    env["ARCOM"] = "${TEMPFILE('$ARCOM_ORIG', '$ARCOMSTR')}"
++
+     ## Dependencies
+ 
+     if env["use_sowrap"]:
