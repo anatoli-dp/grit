@@ -23,5 +23,7 @@ public:
 	static constexpr const char *SETTING_GENERATED_DIRECTORY = "grit/export/generated_directory";
 	static constexpr const char *OPTION_STRIP_SCRIPTS = "grit/strip_scripts";
 
+	static String get_export_source(const String &p_path, const String &p_source);
+
 	virtual String get_name() const override { return "Grit"; }
 };

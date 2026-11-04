@@ -5,10 +5,16 @@
 #include "grit/runtime/grit_registry.h"
 
 #include "modules/gdscript/gdscript.h"
-#include "modules/gdscript/gdscript_tokenizer_buffer.h"
 
 #include "core/config/project_settings.h"
 #include "core/io/resource.h"
+
+static const HashMap<String, String> *exporting_sources = nullptr;
+
+String GritExportPlugin::get_export_source(const String &p_path, const String &p_source) {
+	const String *source = exporting_sources ? exporting_sources->getptr(p_path) : nullptr;
+	return source ? *source : p_source;
+}
 
 void GritExportPlugin::_get_export_options(const Ref<EditorExportPlatform> &p_export_platform, List<EditorExportPlatform::ExportOption> *r_options) const {
 	r_options->push_back(EditorExportPlatform::ExportOption(PropertyInfo(Variant::BOOL, OPTION_STRIP_SCRIPTS), false));
@@ -16,6 +22,7 @@ void GritExportPlugin::_get_export_options(const Ref<EditorExportPlatform> &p_ex
 
 void GritExportPlugin::_export_begin(const HashSet<String> &p_features, bool p_debug, const String &p_path, int p_flags) {
 	stripped_sources.clear();
+	exporting_sources = nullptr;
 	if (!bool(GLOBAL_GET(SETTING_ENABLED))) {
 		return;
 	}
@@ -38,25 +45,24 @@ void GritExportPlugin::_export_begin(const HashSet<String> &p_features, bool p_d
 	}
 
 	stripped_sources = report.stripped_sources;
+	exporting_sources = &stripped_sources;
 	customization_hash = GritRegistry::make_pack_fingerprint(report.fingerprint, strip).hash64();
 	add_file(GritRegistry::get_fingerprint_path(), GritRegistry::make_pack_fingerprint(report.fingerprint, strip).to_utf8_buffer(), false);
 	print_line(vformat("Grit: generated C++ written to \"%s\". Rebuild the export template with grit_generated pointing there.", output_directory));
 }
 
 void GritExportPlugin::_export_file(const String &p_path, const String &p_type, const HashSet<String> &p_features) {
+	// Binary tokens are written by the GDScript exporter, which takes the stripped source from get_export_source().
+	// Export plugins run sorted by name, so this plugin cannot run before it.
+	if (script_mode != EditorExportPreset::MODE_SCRIPT_TEXT) {
+		return;
+	}
 	const String *source = stripped_sources.getptr(p_path);
 	if (!source) {
 		return;
 	}
-	if (script_mode == EditorExportPreset::MODE_SCRIPT_TEXT) {
-		add_file(p_path, source->to_utf8_buffer(), false);
-		skip();
-		return;
-	}
-	const GDScriptTokenizerBuffer::CompressMode compress_mode = script_mode == EditorExportPreset::MODE_SCRIPT_BINARY_TOKENS_COMPRESSED ? GDScriptTokenizerBuffer::COMPRESS_ZSTD : GDScriptTokenizerBuffer::COMPRESS_NONE;
-	const Vector<uint8_t> tokens = GDScriptTokenizerBuffer::parse_code_string(*source, compress_mode);
-	ERR_FAIL_COND_MSG(tokens.is_empty(), vformat("Grit: could not tokenize the stripped \"%s\".", p_path));
-	add_file(p_path.get_basename() + ".gdc", tokens, true);
+	add_file(p_path, source->to_utf8_buffer(), false);
+	skip();
 }
 
 bool GritExportPlugin::_begin_customize_resources(const Ref<EditorExportPlatform> &p_platform, const Vector<String> &p_features) {
@@ -86,5 +92,6 @@ uint64_t GritExportPlugin::_get_customization_configuration_hash() const {
 }
 
 void GritExportPlugin::_export_end() {
+	exporting_sources = nullptr;
 	stripped_sources.clear();
 }

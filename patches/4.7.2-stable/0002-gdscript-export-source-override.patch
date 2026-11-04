@@ -1,0 +1,29 @@
+diff --git a/modules/gdscript/gdscript.h b/modules/gdscript/gdscript.h
+--- a/modules/gdscript/gdscript.h
++++ b/modules/gdscript/gdscript.h
+@@ -584,6 +584,12 @@
+ 
+ 	_FORCE_INLINE_ static GDScriptLanguage *get_singleton() { return singleton; }
+ 
++#ifdef TOOLS_ENABLED
++	// Lets a module change the source a script is tokenized from at export.
++	typedef String (*ExportSourceOverride)(const String &p_path, const String &p_source);
++	static inline ExportSourceOverride export_source_override = nullptr;
++#endif
++
+ 	virtual String get_name() const override;
+ 
+ 	/* LANGUAGE FUNCTIONS */
+diff --git a/modules/gdscript/register_types.cpp b/modules/gdscript/register_types.cpp
+--- a/modules/gdscript/register_types.cpp
++++ b/modules/gdscript/register_types.cpp
+@@ -107,6 +107,9 @@
+ 		}
+ 
+ 		String source = String::utf8(reinterpret_cast<const char *>(file.ptr()), file.size());
++		if (GDScriptLanguage::export_source_override) {
++			source = GDScriptLanguage::export_source_override(p_path, source);
++		}
+ 		GDScriptTokenizerBuffer::CompressMode compress_mode = script_mode == EditorExportPreset::MODE_SCRIPT_BINARY_TOKENS_COMPRESSED ? GDScriptTokenizerBuffer::COMPRESS_ZSTD : GDScriptTokenizerBuffer::COMPRESS_NONE;
+ 		file = GDScriptTokenizerBuffer::parse_code_string(source, compress_mode);
+ 		if (file.is_empty()) {
