@@ -1,0 +1,103 @@
+diff --git a/editor/export/editor_export_platform_pc.h b/editor/export/editor_export_platform_pc.h
+--- a/editor/export/editor_export_platform_pc.h
++++ b/editor/export/editor_export_platform_pc.h
+@@ -44,6 +44,8 @@
+ 
+ 	int chmod_flags = -1;
+ 
++	Error _copy_shared_objects(const Ref<EditorExportPreset> &p_preset, bool p_debug, const String &p_dir, const Vector<SharedObject> &p_so_files);
++
+ public:
+ 	virtual void get_preset_features(const Ref<EditorExportPreset> &p_preset, List<String> *r_features) const override;
+ 	virtual void get_export_options(List<ExportOption> *r_options) const override;
+@@ -62,6 +64,7 @@
+ 	virtual Error prepare_template(const Ref<EditorExportPreset> &p_preset, bool p_debug, const String &p_path, BitField<EditorExportPlatform::DebugFlags> p_flags);
+ 	virtual Error modify_template(const Ref<EditorExportPreset> &p_preset, bool p_debug, const String &p_path, BitField<EditorExportPlatform::DebugFlags> p_flags) { return OK; }
+ 	virtual Error export_project_data(const Ref<EditorExportPreset> &p_preset, bool p_debug, const String &p_path, BitField<EditorExportPlatform::DebugFlags> p_flags);
++	virtual Error export_pack(const Ref<EditorExportPreset> &p_preset, bool p_debug, const String &p_path, BitField<EditorExportPlatform::DebugFlags> p_flags = 0) override;
+ 
+ 	void set_name(const String &p_name);
+ 	void set_os_name(const String &p_name);
+diff --git a/editor/export/editor_export_platform_pc.cpp b/editor/export/editor_export_platform_pc.cpp
+--- a/editor/export/editor_export_platform_pc.cpp
++++ b/editor/export/editor_export_platform_pc.cpp
+@@ -229,38 +229,55 @@
+ 
+ 	if (err == OK && !so_files.is_empty()) {
+ 		// If shared object files, copy them.
+-		Ref<DirAccess> da = DirAccess::create(DirAccess::ACCESS_FILESYSTEM);
+-		for (int i = 0; i < so_files.size() && err == OK; i++) {
+-			String src_path = ProjectSettings::get_singleton()->globalize_path(so_files[i].path);
+-			String target_path;
+-			if (so_files[i].target.is_empty()) {
+-				target_path = p_path.get_base_dir();
+-			} else {
+-				target_path = p_path.get_base_dir().path_join(so_files[i].target);
+-				da->make_dir_recursive(target_path);
+-			}
+-			target_path = target_path.path_join(src_path.get_file());
++		err = _copy_shared_objects(p_preset, p_debug, p_path.get_base_dir(), so_files);
++	}
+ 
+-			if (da->dir_exists(src_path)) {
+-				err = da->make_dir_recursive(target_path);
+-				if (err == OK) {
+-					err = da->copy_dir(src_path, target_path, -1, true);
+-					if (err != OK) {
+-						add_message(EXPORT_MESSAGE_ERROR, TTR("GDExtension"), vformat(TTR("Failed to copy shared object \"%s\"."), src_path));
+-					}
+-				}
+-			} else {
+-				err = da->copy(src_path, target_path);
++	return err;
++}
++
++Error EditorExportPlatformPC::_copy_shared_objects(const Ref<EditorExportPreset> &p_preset, bool p_debug, const String &p_dir, const Vector<SharedObject> &p_so_files) {
++	Error err = OK;
++	Ref<DirAccess> da = DirAccess::create(DirAccess::ACCESS_FILESYSTEM);
++	for (int i = 0; i < p_so_files.size() && err == OK; i++) {
++		String src_path = ProjectSettings::get_singleton()->globalize_path(p_so_files[i].path);
++		String target_path;
++		if (p_so_files[i].target.is_empty()) {
++			target_path = p_dir;
++		} else {
++			target_path = p_dir.path_join(p_so_files[i].target);
++			da->make_dir_recursive(target_path);
++		}
++		target_path = target_path.path_join(src_path.get_file());
++
++		if (da->dir_exists(src_path)) {
++			err = da->make_dir_recursive(target_path);
++			if (err == OK) {
++				err = da->copy_dir(src_path, target_path, -1, true);
+ 				if (err != OK) {
+ 					add_message(EXPORT_MESSAGE_ERROR, TTR("GDExtension"), vformat(TTR("Failed to copy shared object \"%s\"."), src_path));
+ 				}
+-				if (err == OK) {
+-					err = sign_shared_object(p_preset, p_debug, target_path);
+-				}
++			}
++		} else {
++			err = da->copy(src_path, target_path);
++			if (err != OK) {
++				add_message(EXPORT_MESSAGE_ERROR, TTR("GDExtension"), vformat(TTR("Failed to copy shared object \"%s\"."), src_path));
++			}
++			if (err == OK) {
++				err = sign_shared_object(p_preset, p_debug, target_path);
+ 			}
+ 		}
+ 	}
++	return err;
++}
+ 
++Error EditorExportPlatformPC::export_pack(const Ref<EditorExportPreset> &p_preset, bool p_debug, const String &p_path, BitField<EditorExportPlatform::DebugFlags> p_flags) {
++	ExportNotifier notifier(*this, p_preset, p_debug, p_path, p_flags);
++	Vector<SharedObject> so_files;
++	Error err = save_pack(p_preset, p_debug, p_path, &so_files);
++	if (err == OK && !so_files.is_empty()) {
++		// Shared objects (GDExtension libraries) go next to the pack, as a full export puts them next to the executable.
++		err = _copy_shared_objects(p_preset, p_debug, p_path.get_base_dir(), so_files);
++	}
+ 	return err;
+ }
+ 
