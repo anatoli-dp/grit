@@ -70,13 +70,33 @@ void GritRegistry::add_function(const String &p_key, const String &p_signature, 
 	functions.insert(p_key, function);
 }
 
+// The editor gives a function without a return type the return type of the method it overrides
+// (GDScriptAnalyzer::resolve_function_signature, TOOLS_ENABLED only), export templates keep it Variant.
+static bool differs_only_by_inferred_return(const String &p_recorded, const String &p_runtime) {
+	const String variant_return = " -> Variant";
+	const int arrow = p_runtime.rfind(variant_return);
+	if (arrow < 0) {
+		return false;
+	}
+	const String head = p_runtime.substr(0, arrow + 4);
+	const String tail = p_runtime.substr(arrow + variant_return.length());
+	if (!tail.is_empty() && !tail.begins_with(" optional ")) {
+		return false;
+	}
+	if (p_recorded.length() <= head.length() + tail.length() || !p_recorded.begins_with(head) || !p_recorded.ends_with(tail)) {
+		return false;
+	}
+	const String recorded_return = p_recorded.substr(head.length(), p_recorded.length() - head.length() - tail.length());
+	return !recorded_return.contains(" optional ");
+}
+
 const GritRegistry::NativeFunction *GritRegistry::find(const String &p_key, const String &p_signature) const {
 	const String key = keys_obfuscated ? obfuscate_key(p_key) : p_key;
 	HashMap<String, NativeFunction>::ConstIterator function = functions.find(key);
 	if (!function) {
 		return nullptr;
 	}
-	if (function->value.signature != p_signature) {
+	if (function->value.signature != p_signature && !differs_only_by_inferred_return(function->value.signature, p_signature)) {
 		WARN_PRINT(vformat("Grit: signature of \"%s\" changed from \"%s\" to \"%s\", using the GDScript VM.", p_key, function->value.signature, p_signature));
 		return nullptr;
 	}
