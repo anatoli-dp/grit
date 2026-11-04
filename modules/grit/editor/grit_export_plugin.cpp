@@ -35,10 +35,17 @@ void GritExportPlugin::_export_begin(const HashSet<String> &p_features, bool p_d
 		print_line("Grit: scripts are only stripped in release exports, this debug export keeps them.");
 	}
 
+	// Compile only what this export ships, as Godot itself decides it from the preset.
+	const Ref<EditorExportPlatform> platform = preset.is_valid() ? preset->get_platform() : Ref<EditorExportPlatform>();
+	HashSet<String> exported_paths;
+	if (platform.is_valid()) {
+		exported_paths = platform->get_exported_paths(preset);
+	}
+
 	const String output_directory = ProjectSettings::get_singleton()->globalize_path(GLOBAL_GET(SETTING_GENERATED_DIRECTORY));
 	GritProjectCompiler compiler;
 	GritProjectCompiler::Report report;
-	const Error error = compiler.compile(output_directory, strip, report);
+	const Error error = compiler.compile(output_directory, strip, platform.is_valid() ? &exported_paths : nullptr, report);
 	if (error != OK) {
 		ERR_PRINT("Grit: native code generation failed, the exported project will use the GDScript VM.");
 		return;

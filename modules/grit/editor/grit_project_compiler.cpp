@@ -165,10 +165,24 @@ Error GritProjectCompiler::compile_script(const ScriptSource &p_source, LocalVec
 	return OK;
 }
 
-Error GritProjectCompiler::compile(const String &p_output_directory, bool p_strip, Report &r_report) {
+void GritProjectCompiler::keep_exported(Vector<String> &r_paths, const HashSet<String> &p_exported_paths) {
+	Vector<String> kept;
+	for (const String &path : r_paths) {
+		if (p_exported_paths.has(path)) {
+			kept.push_back(path);
+		}
+	}
+	r_paths = kept;
+}
+
+Error GritProjectCompiler::compile(const String &p_output_directory, bool p_strip, const HashSet<String> *p_exported_paths, Report &r_report) {
 	Vector<String> script_paths;
 	Vector<String> resource_paths;
 	collect_files("res://", script_paths, resource_paths);
+	if (p_exported_paths) {
+		keep_exported(script_paths, *p_exported_paths);
+		keep_exported(resource_paths, *p_exported_paths);
+	}
 	resource_paths.sort();
 
 	Vector<ScriptSource> sources;

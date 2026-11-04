@@ -32,6 +32,7 @@ private:
 	};
 
 	static void collect_files(const String &p_directory, Vector<String> &r_scripts, Vector<String> &r_resources);
+	static void keep_exported(Vector<String> &r_paths, const HashSet<String> &p_exported_paths);
 	static bool may_contain_builtin_scripts(const String &p_path);
 	static void collect_builtin_scripts(const Variant &p_value, const String &p_owner_path, HashSet<const Object *> &r_visited, Vector<ScriptSource> &r_sources);
 	static String compute_fingerprint(const Vector<ScriptSource> &p_sources, bool p_strip);
@@ -39,5 +40,6 @@ private:
 	static Error compile_script(const ScriptSource &p_source, LocalVector<GritFunction> &r_functions);
 
 public:
-	Error compile(const String &p_output_directory, bool p_strip, Report &r_report);
+	// p_exported_paths: the files the export ships (EditorExportPlatform::get_exported_paths), or null for the whole project.
+	Error compile(const String &p_output_directory, bool p_strip, const HashSet<String> *p_exported_paths, Report &r_report);
 };
