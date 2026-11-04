@@ -10,6 +10,7 @@
 #include "core/io/dir_access.h"
 #include "core/io/file_access.h"
 #include "core/io/resource.h"
+#include "core/os/os.h"
 
 static const HashMap<String, String> *exporting_sources = nullptr;
 
@@ -38,6 +39,10 @@ String GritExportPlugin::get_export_platform_path() {
 	return ProjectSettings::get_singleton()->get_project_data_path().path_join("grit").path_join("platform");
 }
 
+String GritExportPlugin::get_export_template(const Ref<EditorExportPreset> &p_preset, bool p_debug) {
+	return OS::get_singleton()->get_environment(ENV_EXPORT_TEMPLATE);
+}
+
 String GritExportPlugin::get_export_source(const String &p_path, const String &p_source) {
 	const String *source = exporting_sources ? exporting_sources->getptr(p_path) : nullptr;
 	return source ? *source : p_source;
@@ -60,6 +65,10 @@ void GritExportPlugin::_export_begin(const HashSet<String> &p_features, bool p_d
 	const bool strip = strip_requested && !p_debug;
 	if (strip_requested && p_debug) {
 		print_line("Grit: scripts are only stripped in release exports, this debug export keeps them.");
+	}
+	const String export_template = get_export_template(preset, p_debug);
+	if (!export_template.is_empty()) {
+		print_line(vformat("Grit: this export uses the template \"%s\" (%s).", export_template, ENV_EXPORT_TEMPLATE));
 	}
 
 	// Compile only what this export ships, as Godot itself decides it from the preset.

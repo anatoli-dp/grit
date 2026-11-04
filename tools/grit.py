@@ -19,6 +19,8 @@ GENERATED_DIRECTORY = Path(".godot") / "grit" / "generated"
 FINGERPRINT_FILE = Path(".godot") / "grit" / "fingerprint"
 PLATFORM_FILE = Path(".godot") / "grit" / "platform"
 PLATFORM_OPTIONS = ("platform", "p", "arch")
+EXPORT_TEMPLATE_VARIABLE = "GRIT_EXPORT_TEMPLATE"
+WINDOWS_TEMPLATE_LIBRARIES = ("D3D12Core.dll", "d3d12SDKLayers.dll", "WinPixEventRuntime.dll")
 VM_FALLBACK_MESSAGE = "using the GDScript VM"
 STRIPPED_MESSAGE = "scripts of this game were stripped at export"
 SCRIPT_FAILURE_MESSAGES = ("Parse Error", "Compile Error", "Failed to load script")
@@ -161,17 +163,63 @@ def exported_platform(engine, project, preset):
     return matches[0], architecture
 
 
+def run_editor_export(editor, project, option, preset, path, template=None):
+    command = [str(part) for part in [editor, "--headless", "--path", project, option, preset, path]]
+    environment = dict(os.environ)
+    environment.pop(EXPORT_TEMPLATE_VARIABLE, None)
+    if template:
+        environment[EXPORT_TEMPLATE_VARIABLE] = str(template)
+    print("$ " + (f"{EXPORT_TEMPLATE_VARIABLE}={template} " if template else "") + " ".join(command), flush=True)
+    exported = subprocess.run(command, env=environment, capture_output=True, text=True)
+    output = exported.stdout + exported.stderr
+    print(output, end="")
+    if exported.returncode != 0 or "native code generation failed" in output:
+        sys.exit("Exporting the project with native code failed.")
+    return output
+
+
+def template_for_export(engine, binary, platform_name, architecture):
+    """The template Godot's export copies: the built one, or a staged copy when the build made libraries to go with it.
+
+    Godot's Windows export copies the D3D12 Agility SDK and PIX libraries from beside the template under the names of
+    Godot's template packages (D3D12Core.x86_64.dll), while a template build leaves them in bin/ or bin/<arch>/ as
+    D3D12Core.dll. When the build made any, the template, its console wrapper and those libraries are copied to
+    build/templates/ under the names the export looks for.
+    """
+    if platform_name != "windows":
+        return binary
+    libraries = {}
+    for name in WINDOWS_TEMPLATE_LIBRARIES:
+        for folder in (engine / "bin" / architecture, engine / "bin"):
+            if (folder / name).is_file():
+                libraries[name] = folder / name
+                break
+    if not libraries:
+        return binary
+    staging = ROOT / "build" / "templates" / binary.stem
+    staging.mkdir(parents=True, exist_ok=True)
+    for stale in staging.glob("*.dll"):
+        stale.unlink()
+    template = staging / binary.name
+    shutil.copy2(binary, template)
+    wrapper = binary.with_name(binary.stem + ".console.exe")
+    if wrapper.is_file():
+        shutil.copy2(wrapper, staging / wrapper.name)
+    for name, source in libraries.items():
+        shutil.copy2(source, staging / f"{Path(name).stem}.{architecture}.dll")
+    return template
+
+
 def perform_export(engine, project, preset, output, target, jobs, scons_arguments):
     output.parent.mkdir(parents=True, exist_ok=True)
     (project / PLATFORM_FILE).unlink(missing_ok=True)
-
     editor = find_binary(engine, "editor")
-    command = [str(part) for part in [editor, "--headless", "--path", project, "--export-pack", preset, output]]
-    print("$ " + " ".join(command), flush=True)
-    exported = subprocess.run(command, capture_output=True, text=True)
-    print(exported.stdout + exported.stderr, end="")
-    if exported.returncode != 0 or "native code generation failed" in exported.stdout + exported.stderr:
-        sys.exit("Exporting the project with native code failed.")
+    if not contains_bytes(editor, EXPORT_TEMPLATE_VARIABLE.encode()):
+        sys.exit(f"{editor} predates Grit's export template hook (patch 0007). Rebuild it: python tools/grit.py build editor")
+
+    # First export, the pack only: Grit generates the C++ of every script the preset ships and records the preset's
+    # platform and architecture.
+    run_editor_export(editor, project, "--export-pack", preset, output)
 
     platform_name, architecture = exported_platform(engine, project, preset)
     print(f"Grit: the \"{preset}\" preset exports for {platform_name} {architecture}.", flush=True)
@@ -189,7 +237,22 @@ def perform_export(engine, project, preset, output, target, jobs, scons_argument
     fingerprint = (project / FINGERPRINT_FILE).read_text(encoding="utf-8").strip()
     if not contains_bytes(binary, fingerprint.encode()):
         sys.exit(f"{binary} does not contain the native code of {project}. Delete it and export again.")
-    return install_template(binary, output)
+
+    # Second export, Godot's own with that template: the executable gets everything the preset asks for (on Windows its
+    # icon and version info, and code signing, a console wrapper or an embedded pack when the preset turns them on),
+    # next to the pack and the GDExtension libraries. It is a release export like the first, so Grit generates the same
+    # code and fingerprint again. The first export's pack goes first: this one writes its own, or embeds it.
+    executable = output.with_suffix(binary.suffix)
+    output.unlink()
+    template = template_for_export(engine, binary, platform_name, architecture)
+    exported = run_editor_export(editor, project, "--export-release", preset, executable, template)
+    if f'Grit: this export uses the template "{template}"' not in exported:
+        sys.exit(f"Godot's export did not take the template Grit built ({template}). Rebuild the editor: python tools/grit.py build editor")
+    if (project / FINGERPRINT_FILE).read_text(encoding="utf-8").strip() != fingerprint:
+        sys.exit("The second export generated different code than the first (did the scripts change during the build?). Export again.")
+    if not contains_bytes(executable, fingerprint.encode()):
+        sys.exit(f"{executable} does not contain the native code of {project}.")
+    return executable
 
 
 def export(arguments):
@@ -258,12 +321,6 @@ def contains_bytes(path, needle):
         return data.find(needle) >= 0
 
 
-def install_template(binary, pack):
-    executable = pack.with_suffix(binary.suffix)
-    shutil.copy2(binary, executable)
-    return executable
-
-
 def run_game(executable, use_vm):
     environment = dict(os.environ)
     if use_vm:
@@ -285,10 +342,11 @@ def run_game(executable, use_vm):
 
 
 def installed_executable(pack):
+    # Godot's console wrappers (<name>.sh on Linux, <name>.console.exe on Windows) sit beside the executable too.
     candidates = [
         path
         for path in pack.parent.glob(glob.escape(pack.stem) + ".*")
-        if path != pack and path.is_file() and os.access(path, os.X_OK)
+        if path != pack and path.is_file() and os.access(path, os.X_OK) and not path.name.endswith((".sh", ".console.exe"))
     ]
     if len(candidates) != 1:
         found = ", ".join(sorted(path.name for path in candidates)) or "none"

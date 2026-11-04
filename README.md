@@ -144,6 +144,11 @@ The template is built for the platform and architecture of the preset (its platf
 so a Windows preset gives a Windows game from a Linux machine too, as long as SCons can build Windows there (MinGW).
 The editor stays a build for the machine you are on. The preset decides, so `platform=` and `arch=` are refused here.
 
+The project is exported twice. The first export (the pack only) generates the C++; once the template is built, the
+second is Godot's own export with that template (the `template_override` hook of patch 0007), so the executable gets
+everything the preset asks for, such as the icon and version info on Windows. Both are release exports, so the second
+generates the same code and nothing is rebuilt.
+
 ### Exporting a project
 
 If you want the pack and template separately, use `export` instead:
@@ -154,7 +159,8 @@ python3 tools/grit.py export path/to/project "Linux" build/game.pck
 ```
 
 This exports the project with the Grit editor, which generates the C++, builds the export template with that code and
-places it next to the pack. Add `--target template_debug` for a debug build.
+exports the project again with Godot's own export and that template, so the executable lands next to the pack. Add
+`--target template_debug` for a debug build.
 
 The export log lists every function that stays in the VM together with the reason. To compare against the VM, run
 the game with `GRIT_DISABLE=1`.

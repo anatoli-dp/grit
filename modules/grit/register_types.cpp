@@ -14,6 +14,7 @@
 #include "core/config/project_settings.h"
 #include "editor/editor_node.h"
 #include "editor/export/editor_export.h"
+#include "editor/export/editor_export_platform_pc.h"
 #endif
 
 static GritRegistry *grit_registry = nullptr;
@@ -60,6 +61,7 @@ void initialize_grit_module(ModuleInitializationLevel p_level) {
 	EditorNode::add_init_callback(grit_editor_init);
 	GDScriptCompiler::set_code_generator_factory(grit_create_code_generator);
 	GDScriptLanguage::export_source_override = GritExportPlugin::get_export_source;
+	EditorExportPlatformPC::template_override = GritExportPlugin::get_export_template;
 #else
 	if (grit_registry->is_active()) {
 		GDScriptCompiler::set_code_generator_factory(grit_create_code_generator);
@@ -75,6 +77,7 @@ void uninitialize_grit_module(ModuleInitializationLevel p_level) {
 	GDScriptCompiler::set_code_generator_factory(nullptr);
 #ifdef TOOLS_ENABLED
 	GDScriptLanguage::export_source_override = nullptr;
+	EditorExportPlatformPC::template_override = nullptr;
 #endif
 	GritRuntime::clear_property_accessors();
 	memdelete(grit_registry);

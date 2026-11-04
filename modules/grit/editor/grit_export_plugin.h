@@ -26,6 +26,10 @@ public:
 	static String get_export_source(const String &p_path, const String &p_source);
 	// Where an export records its platform and architecture for the grit tool (res://.godot/grit/platform).
 	static String get_export_platform_path();
+	// The export template the grit tool built for this export (EditorExportPlatformPC::template_override): the path in
+	// GRIT_EXPORT_TEMPLATE, which only the tool sets, for its own export run; empty otherwise (the preset decides).
+	static constexpr const char *ENV_EXPORT_TEMPLATE = "GRIT_EXPORT_TEMPLATE";
+	static String get_export_template(const Ref<EditorExportPreset> &p_preset, bool p_debug);
 
 	virtual String get_name() const override { return "Grit"; }
 };
