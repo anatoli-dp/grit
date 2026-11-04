@@ -140,6 +140,10 @@ ready-to-run game plus a `.tar.gz` archive into `build/games/<name>/`. `"Linux"`
 the project. Add `--target template_debug` for a debug build, `--output <dir>` to choose the location or `--no-archive`
 to skip the archive.
 
+The template is built for the platform and architecture of the preset (its platform and `binary_format/architecture`),
+so a Windows preset gives a Windows game from a Linux machine too, as long as SCons can build Windows there (MinGW).
+The editor stays a build for the machine you are on. The preset decides, so `platform=` and `arch=` are refused here.
+
 ### Exporting a project
 
 If you want the pack and template separately, use `export` instead:

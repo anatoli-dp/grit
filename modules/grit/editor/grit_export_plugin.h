@@ -24,6 +24,8 @@ public:
 	static constexpr const char *OPTION_STRIP_SCRIPTS = "grit/strip_scripts";
 
 	static String get_export_source(const String &p_path, const String &p_source);
+	// Where an export records its platform and architecture for the grit tool (res://.godot/grit/platform).
+	static String get_export_platform_path();
 
 	virtual String get_name() const override { return "Grit"; }
 };

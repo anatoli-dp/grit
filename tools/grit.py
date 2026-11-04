@@ -17,6 +17,8 @@ PATCH_DIRECTORY = ROOT / "patches" / GODOT_TAG
 DEFAULT_ENGINE = ROOT.parent / "godot-4.7"
 GENERATED_DIRECTORY = Path(".godot") / "grit" / "generated"
 FINGERPRINT_FILE = Path(".godot") / "grit" / "fingerprint"
+PLATFORM_FILE = Path(".godot") / "grit" / "platform"
+PLATFORM_OPTIONS = ("platform", "p", "arch")
 VM_FALLBACK_MESSAGE = "using the GDScript VM"
 STRIPPED_MESSAGE = "scripts of this game were stripped at export"
 SCRIPT_FAILURE_MESSAGES = ("Parse Error", "Compile Error", "Failed to load script")
@@ -73,13 +75,15 @@ def binary_suffix(scons_arguments):
     return suffix
 
 
-def binary_path(engine, target, scons_arguments=()):
-    suffix = ".exe" if sys.platform == "win32" else ""
-    return engine / "bin" / f"godot.{host_platform()}.{target}.{host_architecture()}{binary_suffix(scons_arguments)}{suffix}"
+def binary_path(engine, target, scons_arguments=(), platform_name=None, architecture=None):
+    platform_name = platform_name or host_platform()
+    architecture = architecture or host_architecture()
+    suffix = ".exe" if platform_name == "windows" else ""
+    return engine / "bin" / f"godot.{platform_name}.{target}.{architecture}{binary_suffix(scons_arguments)}{suffix}"
 
 
-def find_binary(engine, target, scons_arguments=()):
-    binary = binary_path(engine, target, scons_arguments)
+def find_binary(engine, target, scons_arguments=(), platform_name=None, architecture=None):
+    binary = binary_path(engine, target, scons_arguments, platform_name, architecture)
     if not binary.exists():
         sys.exit(f"{binary} does not exist. Run: python tools/grit.py build {target}")
     return binary
@@ -114,19 +118,52 @@ def scons_command():
 def build(arguments):
     command = [
         *scons_command(),
-        f"platform={host_platform()}",
+        f"platform={getattr(arguments, 'platform', None) or host_platform()}",
         f"target={arguments.target}",
         f"custom_modules={ROOT / 'modules'}",
         f"-j{arguments.jobs}",
     ]
+    if getattr(arguments, "arch", None):
+        command.append(f"arch={arguments.arch}")
     if arguments.generated:
         command.append(f"grit_generated={Path(arguments.generated).resolve()}")
     command += arguments.scons_arguments
     run(command, cwd=Path(arguments.engine).resolve())
 
 
+def reject_platform_arguments(scons_arguments):
+    given = [argument for argument in scons_arguments if argument.partition("=")[0] in PLATFORM_OPTIONS]
+    if given:
+        sys.exit(f"{' '.join(given)}: the export preset decides the platform and architecture, leave this out.")
+
+
+def exported_platform(engine, project, preset):
+    """The platform and architecture the export was made for, as Grit's export plugin recorded them from the preset."""
+    record = project / PLATFORM_FILE
+    if not record.exists():
+        sys.exit(f'The export of "{preset}" did not record its platform ({record}). Is grit/export/enabled on?')
+    values = {}
+    for line in record.read_text(encoding="utf-8").splitlines():
+        key, separator, value = line.partition("=")
+        if separator:
+            values[key] = value.strip()
+    # SCons knows a platform by its folder under platform/, and each export platform tags its exports with that name
+    # (Windows with "windows", Linux with "linux" and "linuxbsd").
+    platforms = {path.name for path in (engine / "platform").iterdir() if (path / "detect.py").exists()}
+    tags = values.get("platform_features", "").split()
+    matches = [tag for tag in tags if tag in platforms]
+    architecture = values.get("architecture", "")
+    if len(matches) != 1 or not architecture:
+        sys.exit(
+            f'Grit cannot tell which template the "{preset}" preset needs: platform tags {tags or "none"}, '
+            f'architecture "{architecture}" (only presets with binary_format/architecture are supported).'
+        )
+    return matches[0], architecture
+
+
 def perform_export(engine, project, preset, output, target, jobs, scons_arguments):
     output.parent.mkdir(parents=True, exist_ok=True)
+    (project / PLATFORM_FILE).unlink(missing_ok=True)
 
     editor = find_binary(engine, "editor")
     command = [str(part) for part in [editor, "--headless", "--path", project, "--export-pack", preset, output]]
@@ -136,15 +173,19 @@ def perform_export(engine, project, preset, output, target, jobs, scons_argument
     if exported.returncode != 0 or "native code generation failed" in exported.stdout + exported.stderr:
         sys.exit("Exporting the project with native code failed.")
 
+    platform_name, architecture = exported_platform(engine, project, preset)
+    print(f"Grit: the \"{preset}\" preset exports for {platform_name} {architecture}.", flush=True)
     build_arguments = argparse.Namespace(
         engine=str(engine),
         target=target,
         jobs=jobs,
         generated=project / GENERATED_DIRECTORY,
         scons_arguments=scons_arguments,
+        platform=platform_name,
+        arch=architecture,
     )
     build(build_arguments)
-    binary = find_binary(engine, target, scons_arguments)
+    binary = find_binary(engine, target, scons_arguments, platform_name, architecture)
     fingerprint = (project / FINGERPRINT_FILE).read_text(encoding="utf-8").strip()
     if not contains_bytes(binary, fingerprint.encode()):
         sys.exit(f"{binary} does not contain the native code of {project}. Delete it and export again.")
@@ -152,6 +193,7 @@ def perform_export(engine, project, preset, output, target, jobs, scons_argument
 
 
 def export(arguments):
+    reject_platform_arguments(arguments.scons_arguments)
     engine = Path(arguments.engine).resolve()
     project = Path(arguments.project).resolve()
     output = Path(arguments.output).resolve()
@@ -187,6 +229,7 @@ def ensure_engine_ready(engine, jobs, scons_arguments):
 
 
 def game(arguments):
+    reject_platform_arguments(arguments.scons_arguments)
     engine = Path(arguments.engine).resolve()
     project = Path(arguments.project).resolve()
     if not (project / "project.godot").exists():

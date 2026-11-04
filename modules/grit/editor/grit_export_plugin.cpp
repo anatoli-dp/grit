@@ -7,9 +7,36 @@
 #include "modules/gdscript/gdscript.h"
 
 #include "core/config/project_settings.h"
+#include "core/io/dir_access.h"
+#include "core/io/file_access.h"
 #include "core/io/resource.h"
 
 static const HashMap<String, String> *exporting_sources = nullptr;
+
+// Records what this export is for, so the grit tool builds the matching export template without being told: the
+// platform's own feature tags (one of them is the name SCons and the template's file name use, "windows" or
+// "linuxbsd") and binary_format/architecture, the option Godot's PC exports pick their template by.
+static void write_export_platform(const Ref<EditorExportPlatform> &p_platform, const Ref<EditorExportPreset> &p_preset) {
+	List<String> features;
+	p_platform->get_platform_features(&features);
+	Vector<String> tags;
+	for (const String &feature : features) {
+		tags.push_back(feature);
+	}
+	bool has_architecture = false;
+	const Variant architecture = p_preset->get("binary_format/architecture", &has_architecture);
+
+	const String path = ProjectSettings::get_singleton()->globalize_path(GritExportPlugin::get_export_platform_path());
+	Error error = DirAccess::make_dir_recursive_absolute(path.get_base_dir());
+	ERR_FAIL_COND_MSG(error != OK, vformat("Grit: could not create \"%s\".", path.get_base_dir()));
+	Ref<FileAccess> file = FileAccess::open(path, FileAccess::WRITE, &error);
+	ERR_FAIL_COND_MSG(file.is_null(), vformat("Grit: could not write \"%s\".", path));
+	file->store_string("platform_features=" + String(" ").join(tags) + "\narchitecture=" + (has_architecture ? String(architecture) : String()) + "\n");
+}
+
+String GritExportPlugin::get_export_platform_path() {
+	return ProjectSettings::get_singleton()->get_project_data_path().path_join("grit").path_join("platform");
+}
 
 String GritExportPlugin::get_export_source(const String &p_path, const String &p_source) {
 	const String *source = exporting_sources ? exporting_sources->getptr(p_path) : nullptr;
@@ -49,6 +76,10 @@ void GritExportPlugin::_export_begin(const HashSet<String> &p_features, bool p_d
 	if (error != OK) {
 		ERR_PRINT("Grit: native code generation failed, the exported project will use the GDScript VM.");
 		return;
+	}
+
+	if (platform.is_valid()) {
+		write_export_platform(platform, preset);
 	}
 
 	stripped_sources = report.stripped_sources;
