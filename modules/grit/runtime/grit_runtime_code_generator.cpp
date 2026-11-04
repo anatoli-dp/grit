@@ -8,6 +8,8 @@
 void GritRuntimeCodeGenerator::attach(GDScript *p_script, GDScriptFunction *p_function, const String &p_key, const String &p_signature) {
 	const GritRegistry::NativeFunction *native_function = GritRegistry::get_singleton()->find(p_key, p_signature);
 	if (!native_function) {
+		// TEMPORARY DEBUG (remove before the PR): every function that runs on the VM.
+		print_line(vformat("Grit DEBUG: no native code for \"%s\" %s", p_key, p_signature));
 		if (GritRegistry::get_singleton()->is_stripped(p_key)) {
 			CRASH_NOW_MSG(vformat("Grit: \"%s\" was stripped at export but its native code cannot be attached.", p_key));
 		}

@@ -153,6 +153,8 @@ void GritRegistry::activate() {
 	if (active) {
 		print_verbose(vformat("Grit: %d native functions available.", functions.size()));
 	}
+	// TEMPORARY DEBUG (remove before the PR).
+	print_line(vformat("Grit DEBUG: registry active=%s, %d native functions, keys obfuscated=%s.", active ? "yes" : "no", functions.size(), keys_obfuscated ? "yes" : "no"));
 }
 
 GritRegistry::GritRegistry() {

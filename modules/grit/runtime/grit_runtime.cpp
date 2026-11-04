@@ -147,6 +147,12 @@ void report_error(const GritFrame &p_frame, int p_line, const String &p_message)
 
 	_err_print_error(function_name.utf8().get_data(), file.utf8().get_data(), p_line, p_message, false, ERR_HANDLER_SCRIPT);
 	GDScriptLanguage::get_singleton()->debug_break(p_message, false);
+#else
+	// TEMPORARY DEBUG (remove before the PR): show native errors in release templates.
+	const GDScript *function_script = p_frame.function ? p_frame.function->get_script() : nullptr;
+	const String file = function_script ? function_script->get_script_path() : String("<unknown>");
+	const String function_name = p_frame.function ? String(p_frame.function->get_name()) : String("<unknown>");
+	_err_print_error(function_name.utf8().get_data(), file.utf8().get_data(), p_line, "Grit DEBUG: " + p_message, false, ERR_HANDLER_SCRIPT);
 #endif
 }
 
