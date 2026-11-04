@@ -13,8 +13,8 @@ class GritScriptStripper {
 	void strip_class(const GDScriptParser::ClassNode *p_class, const String &p_class_path);
 	void strip_function(const GDScriptParser::FunctionNode *p_function, const String &p_id, const String &p_stub);
 	void strip_accessor(const GDScriptParser::FunctionNode *p_accessor, const String &p_class_path, const String &p_stub);
-	String node_text(const GDScriptParser::Node *p_node) const;
-	String stub(const GDScriptParser::DataType &p_type, const GDScriptParser::Node *p_type_node) const;
+	static String type_text(const GDScriptParser::TypeNode *p_type_node);
+	String stub(const GDScriptParser::DataType &p_type, const GDScriptParser::TypeNode *p_type_node) const;
 	void set_line(int p_line, const String &p_text);
 
 public:

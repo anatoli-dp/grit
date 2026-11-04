@@ -11,15 +11,19 @@ void GritScriptStripper::set_line(int p_line, const String &p_text) {
 	lines.write[p_line - 1] = original.ends_with("\r") ? p_text + "\r" : p_text;
 }
 
-String GritScriptStripper::node_text(const GDScriptParser::Node *p_node) const {
-	if (!p_node || p_node->start_line != p_node->end_line || p_node->start_line < 1 || p_node->start_line > lines.size()) {
+// Built from the identifiers: a type node's extents start at the "->" or ":" before it.
+String GritScriptStripper::type_text(const GDScriptParser::TypeNode *p_type_node) {
+	if (!p_type_node || p_type_node->type_chain.is_empty()) {
 		return String();
 	}
-	const String &line = lines[p_node->start_line - 1];
-	return line.substr(p_node->start_column - 1, p_node->end_column - p_node->start_column).strip_edges();
+	PackedStringArray names;
+	for (const GDScriptParser::IdentifierNode *identifier : p_type_node->type_chain) {
+		names.push_back(identifier->name);
+	}
+	return String(".").join(names);
 }
 
-String GritScriptStripper::stub(const GDScriptParser::DataType &p_type, const GDScriptParser::Node *p_type_node) const {
+String GritScriptStripper::stub(const GDScriptParser::DataType &p_type, const GDScriptParser::TypeNode *p_type_node) const {
 	switch (p_type.kind) {
 		case GDScriptParser::DataType::BUILTIN:
 			switch (p_type.builtin_type) {
@@ -33,8 +37,8 @@ String GritScriptStripper::stub(const GDScriptParser::DataType &p_type, const GD
 					return "return " + Variant::get_type_name(p_type.builtin_type) + "()";
 			}
 		case GDScriptParser::DataType::ENUM: {
-			const String type_text = node_text(p_type_node);
-			return type_text.is_empty() ? String() : "return 0 as " + type_text;
+			const String enum_type = type_text(p_type_node);
+			return enum_type.is_empty() ? String() : "return 0 as " + enum_type;
 		}
 		case GDScriptParser::DataType::NATIVE:
 		case GDScriptParser::DataType::SCRIPT:
