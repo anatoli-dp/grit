@@ -11,15 +11,18 @@ void GritScriptStripper::set_line(int p_line, const String &p_text) {
 	lines.write[p_line - 1] = original.ends_with("\r") ? p_text + "\r" : p_text;
 }
 
-String GritScriptStripper::node_text(const GDScriptParser::Node *p_node) const {
-	if (!p_node || p_node->start_line != p_node->end_line || p_node->start_line < 1 || p_node->start_line > lines.size()) {
+String GritScriptStripper::node_text(const GDScriptParser::TypeNode *p_node) const {
+	if (!p_node) {
 		return String();
 	}
-	const String &line = lines[p_node->start_line - 1];
-	return line.substr(p_node->start_column - 1, p_node->end_column - p_node->start_column).strip_edges();
+	PackedStringArray names;
+	for (const GDScriptParser::IdentifierNode *identifier : p_node->type_chain) {
+		names.push_back(identifier->name);
+	}
+	return String(".").join(names);
 }
 
-String GritScriptStripper::stub(const GDScriptParser::DataType &p_type, const GDScriptParser::Node *p_type_node) const {
+String GritScriptStripper::stub(const GDScriptParser::DataType &p_type, const GDScriptParser::TypeNode *p_type_node) const {
 	switch (p_type.kind) {
 		case GDScriptParser::DataType::BUILTIN:
 			switch (p_type.builtin_type) {
