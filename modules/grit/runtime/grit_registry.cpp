@@ -70,13 +70,29 @@ void GritRegistry::add_function(const String &p_key, const String &p_signature, 
 	functions.insert(p_key, function);
 }
 
+static bool differs_only_by_inferred_return(const String &p_recorded, const String &p_runtime) {
+	const String arrow = " -> ";
+	const String variant_return = arrow + "Variant";
+	const int return_at = p_runtime.rfind(variant_return);
+	if (return_at < 0) {
+		return false;
+	}
+	const String head = p_runtime.substr(0, return_at + arrow.length());
+	const String tail = p_runtime.substr(return_at + variant_return.length());
+	if (p_recorded.length() <= head.length() + tail.length() || !p_recorded.begins_with(head) || !p_recorded.ends_with(tail)) {
+		return false;
+	}
+	const String recorded_return = p_recorded.substr(head.length(), p_recorded.length() - head.length() - tail.length());
+	return !recorded_return.contains(" optional ");
+}
+
 const GritRegistry::NativeFunction *GritRegistry::find(const String &p_key, const String &p_signature) const {
 	const String key = keys_obfuscated ? obfuscate_key(p_key) : p_key;
 	HashMap<String, NativeFunction>::ConstIterator function = functions.find(key);
 	if (!function) {
 		return nullptr;
 	}
-	if (function->value.signature != p_signature) {
+	if (function->value.signature != p_signature && !differs_only_by_inferred_return(function->value.signature, p_signature)) {
 		WARN_PRINT(vformat("Grit: signature of \"%s\" changed from \"%s\" to \"%s\", using the GDScript VM.", p_key, function->value.signature, p_signature));
 		return nullptr;
 	}

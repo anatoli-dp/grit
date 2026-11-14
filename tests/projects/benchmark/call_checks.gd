@@ -49,6 +49,13 @@ class Freer:
 		node.free()
 
 
+class Starter:
+	extends Node
+
+	func _ready():
+		pass
+
+
 static func scaled(value: float, factor := 2.0, offset := 0.5) -> float:
 	return value * factor + offset
 
