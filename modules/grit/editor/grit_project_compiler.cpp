@@ -1,6 +1,7 @@
 #include "grit_project_compiler.h"
 
 #include "grit_script_stripper.h"
+#include "grit_vm_directives.h"
 
 #include "grit/compiler/grit_recording_code_generator.h"
 #include "grit/compiler/grit_source_writer.h"
@@ -204,6 +205,13 @@ Error GritProjectCompiler::compile(const String &p_output_directory, bool p_stri
 		const Error error = compile_script(source, functions);
 		if (error != OK) {
 			return error;
+		}
+		GritVMDirectives directives;
+		const Error directive_error = directives.parse(source.path, source.code);
+		ERR_FAIL_COND_V_MSG(directive_error != OK, directive_error, vformat("Grit: could not read the directives of \"%s\".", source.path));
+		directives.apply(functions);
+		for (const String &warning : directives.get_warnings()) {
+			WARN_PRINT(vformat("Grit: \"%s\" %s.", source.path, warning));
 		}
 		if (p_strip) {
 			GritScriptStripper stripper;

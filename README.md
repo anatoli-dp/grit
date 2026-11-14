@@ -50,6 +50,7 @@ exported game, and every function Grit cannot handle keeps running in the GDScri
 - **Debugging:** native functions appear in script backtraces, `print_stack()` and `get_stack()` with the correct
   lines.
 - **Safe fallback:** unsupported functions, edited scripts or mismatching signatures silently use the VM, per function.
+  A `# grit: vm` comment line right above a `func` keeps it in the VM, `# grit: vm-script` at the top keeps the script.
 
 ## How it works
 
