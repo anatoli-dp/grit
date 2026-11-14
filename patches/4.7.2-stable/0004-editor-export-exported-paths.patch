@@ -1,0 +1,43 @@
+diff --git a/editor/export/editor_export_platform.cpp b/editor/export/editor_export_platform.cpp
+index 2b93fa1d51..27fed33cb5 100644
+--- a/editor/export/editor_export_platform.cpp
++++ b/editor/export/editor_export_platform.cpp
+@@ -1316,10 +1316,8 @@ Error EditorExportPlatform::_export_project_files(const Ref<EditorExportPreset>
+ 	return export_project_files(p_preset, p_debug, _script_save_file, nullptr, &data, _script_add_shared_object);
+ }
+ 
+-Error EditorExportPlatform::export_project_files(const Ref<EditorExportPreset> &p_preset, bool p_debug, EditorExportSaveFunction p_save_func, EditorExportRemoveFunction p_remove_func, void *p_udata, EditorExportSaveSharedObject p_so_func) {
+-	//figure out paths of files that will be exported
++HashSet<String> EditorExportPlatform::get_exported_paths(const Ref<EditorExportPreset> &p_preset) {
+ 	HashSet<String> paths;
+-	Vector<String> path_remaps;
+ 
+ 	if (p_preset->get_export_filter() == EditorExportPreset::EXPORT_ALL_RESOURCES) {
+ 		//find stuff
+@@ -1373,6 +1371,14 @@ Error EditorExportPlatform::export_project_files(const Ref<EditorExportPreset> &
+ 	// Ignore import files, since these are automatically added to the jar later with the resources
+ 	_edit_filter_list(paths, String("*.import"), true);
+ 
++	return paths;
++}
++
++Error EditorExportPlatform::export_project_files(const Ref<EditorExportPreset> &p_preset, bool p_debug, EditorExportSaveFunction p_save_func, EditorExportRemoveFunction p_remove_func, void *p_udata, EditorExportSaveSharedObject p_so_func) {
++	//figure out paths of files that will be exported
++	HashSet<String> paths = get_exported_paths(p_preset);
++	Vector<String> path_remaps;
++
+ 	// Get encryption filters.
+ 	bool enc_pck = p_preset->get_enc_pck();
+ 	Vector<String> enc_in_filters;
+diff --git a/editor/export/editor_export_platform.h b/editor/export/editor_export_platform.h
+index 636e740123..f44b0a817a 100644
+--- a/editor/export/editor_export_platform.h
++++ b/editor/export/editor_export_platform.h
+@@ -309,6 +309,7 @@ public:
+ 	Dictionary get_internal_export_files(const Ref<EditorExportPreset> &p_preset, bool p_debug);
+ 
+ 	static Vector<String> get_forced_export_files(const Ref<EditorExportPreset> &p_preset);
++	HashSet<String> get_exported_paths(const Ref<EditorExportPreset> &p_preset);
+ 
+ 	virtual bool fill_log_messages(RichTextLabel *p_log, Error p_err);
+ 
