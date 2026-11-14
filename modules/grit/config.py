@@ -4,7 +4,10 @@ def can_build(env, platform):
 
 
 def configure(env):
-    pass
+    # In case the command line to AR is too long, use a response file, as on Windows.
+    if env["platform"] == "linuxbsd":
+        env["ARCOM_ORIG"] = env["ARCOM"]
+        env["ARCOM"] = "${TEMPFILE('$ARCOM_ORIG', '$ARCOMSTR')}"
 
 
 def get_opts(platform):
