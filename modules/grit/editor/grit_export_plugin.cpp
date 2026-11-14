@@ -2,6 +2,7 @@
 
 #include "grit_project_compiler.h"
 
+#include "grit/compiler/grit_source_writer.h"
 #include "grit/runtime/grit_registry.h"
 
 #include "modules/gdscript/gdscript.h"
@@ -16,6 +17,7 @@ void GritExportPlugin::_get_export_options(const Ref<EditorExportPlatform> &p_ex
 
 void GritExportPlugin::_export_begin(const HashSet<String> &p_features, bool p_debug, const String &p_path, int p_flags) {
 	stripped_sources.clear();
+	GritSourceWriter::remove_vm_functions();
 	if (!bool(GLOBAL_GET(SETTING_ENABLED))) {
 		return;
 	}
@@ -41,6 +43,11 @@ void GritExportPlugin::_export_begin(const HashSet<String> &p_features, bool p_d
 	customization_hash = GritRegistry::make_pack_fingerprint(report.fingerprint, strip).hash64();
 	add_file(GritRegistry::get_fingerprint_path(), GritRegistry::make_pack_fingerprint(report.fingerprint, strip).to_utf8_buffer(), false);
 	print_line(vformat("Grit: generated C++ written to \"%s\". Rebuild the export template with grit_generated pointing there.", output_directory));
+
+	const int vm_function_count = report.vm_functions.size();
+	if (vm_function_count > 0) {
+		preset->get_platform()->add_message(EditorExportPlatform::EXPORT_MESSAGE_WARNING, "Grit", vformat("%d %s in the GDScript VM, see \"%s\" for the list and the reasons.", vm_function_count, vm_function_count == 1 ? "function stays" : "functions stay", ProjectSettings::get_singleton()->globalize_path(GritSourceWriter::get_vm_functions_path())));
+	}
 }
 
 void GritExportPlugin::_export_file(const String &p_path, const String &p_type, const HashSet<String> &p_features) {

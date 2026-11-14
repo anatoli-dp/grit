@@ -103,6 +103,11 @@ bool GritRegistry::matches_project() const {
 	const bool is_stripped_pack = error == OK && pack_lines.has(STRIPPED_FLAG);
 #endif
 	if (functions.is_empty() && !is_stripped_pack) {
+#ifdef GRIT_DIAGNOSTICS_ENABLED
+		if (!pack_fingerprint.is_empty()) {
+			print_line("Grit: this executable contains no native code, using the GDScript VM.");
+		}
+#endif
 		return false;
 	}
 
@@ -131,7 +136,11 @@ void GritRegistry::activate() {
 	active = matches_project();
 #endif
 	if (active) {
+#ifdef GRIT_DIAGNOSTICS_ENABLED
+		print_line(vformat("Grit: native code active, %d functions.", functions.size()));
+#else
 		print_verbose(vformat("Grit: %d native functions available.", functions.size()));
+#endif
 	}
 }
 

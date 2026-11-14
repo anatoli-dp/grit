@@ -155,8 +155,8 @@ python3 tools/grit.py export path/to/project "Linux" build/game.pck
 This exports the project with the Grit editor, which generates the C++, builds the export template with that code and
 places it next to the pack. Add `--target template_debug` for a debug build.
 
-The export log lists every function that stays in the VM together with the reason. To compare against the VM, run
-the game with `GRIT_DISABLE=1`.
+The export lists every function that stays in the VM together with the reason in `.godot/grit/vm_functions.txt`, and
+a debug template prints each one when it runs. To compare against the VM, run the game with `GRIT_DISABLE=1`.
 
 You can also export from the editor UI. The C++ is then written to `res://.godot/grit/generated`; build a template from
 it and select that binary as the custom template in your export preset:

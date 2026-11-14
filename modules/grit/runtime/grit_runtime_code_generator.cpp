@@ -11,6 +11,9 @@ void GritRuntimeCodeGenerator::attach(GDScript *p_script, GDScriptFunction *p_fu
 		if (GritRegistry::get_singleton()->is_stripped(p_key)) {
 			CRASH_NOW_MSG(vformat("Grit: \"%s\" was stripped at export but its native code cannot be attached.", p_key));
 		}
+#ifdef GRIT_DIAGNOSTICS_ENABLED
+		print_line(vformat("Grit: runs on the VM: \"%s\" %s", p_key, p_signature));
+#endif
 		return;
 	}
 	if (native_function->constants) {

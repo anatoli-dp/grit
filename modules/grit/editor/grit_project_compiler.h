@@ -20,6 +20,7 @@ public:
 		int native_function_count = 0;
 		int stripped_function_count = 0;
 		HashMap<String, String> stripped_sources;
+		Vector<String> vm_functions;
 	};
 
 private:

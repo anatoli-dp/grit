@@ -87,9 +87,32 @@ Error GritSourceWriter::write(const String &p_output_directory, const String &p_
 	return OK;
 }
 
+Error GritSourceWriter::write_project_data_file(const String &p_path, const String &p_content) {
+	const String path = ProjectSettings::get_singleton()->globalize_path(p_path);
+	const Error error = DirAccess::make_dir_recursive_absolute(path.get_base_dir());
+	ERR_FAIL_COND_V_MSG(error != OK, error, vformat("Grit: could not create \"%s\".", path.get_base_dir()));
+	return write_file_if_changed(path, p_content);
+}
+
 Error GritSourceWriter::write_fingerprint(const String &p_fingerprint) {
-	const String fingerprint_path = ProjectSettings::get_singleton()->globalize_path(GritRegistry::get_fingerprint_path());
-	const Error error = DirAccess::make_dir_recursive_absolute(fingerprint_path.get_base_dir());
-	ERR_FAIL_COND_V_MSG(error != OK, error, vformat("Grit: could not create \"%s\".", fingerprint_path.get_base_dir()));
-	return write_file_if_changed(fingerprint_path, p_fingerprint);
+	return write_project_data_file(GritRegistry::get_fingerprint_path(), p_fingerprint);
+}
+
+String GritSourceWriter::get_vm_functions_path() {
+	return ProjectSettings::get_singleton()->get_project_data_path().path_join("grit").path_join("vm_functions.txt");
+}
+
+Error GritSourceWriter::write_vm_functions(const Vector<String> &p_lines) {
+	String content;
+	for (const String &line : p_lines) {
+		content += line + "\n";
+	}
+	return write_project_data_file(get_vm_functions_path(), content);
+}
+
+void GritSourceWriter::remove_vm_functions() {
+	const String path = ProjectSettings::get_singleton()->globalize_path(get_vm_functions_path());
+	if (FileAccess::exists(path)) {
+		ERR_FAIL_COND_MSG(DirAccess::remove_absolute(path) != OK, vformat("Grit: could not remove \"%s\".", path));
+	}
 }

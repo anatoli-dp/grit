@@ -8,6 +8,11 @@ class GDScript;
 #include "core/templates/hash_set.h"
 #include "core/templates/safe_refcount.h"
 
+// Debug export templates say at startup whether native code is active and name each function that runs in the VM.
+#if defined(DEBUG_ENABLED) && !defined(TOOLS_ENABLED)
+#define GRIT_DIAGNOSTICS_ENABLED
+#endif
+
 class GritRegistry {
 public:
 	static constexpr const char *STRIPPED_FLAG = "stripped";

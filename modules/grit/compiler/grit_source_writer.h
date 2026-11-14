@@ -9,6 +9,7 @@ class GritSourceWriter {
 	Vector<String> script_order;
 
 	static Error write_file_if_changed(const String &p_path, const String &p_content);
+	static Error write_project_data_file(const String &p_path, const String &p_content);
 	static void remove_stale_files(const String &p_directory, const Vector<String> &p_current_files);
 
 public:
@@ -18,4 +19,9 @@ public:
 
 	Error write(const String &p_output_directory, const String &p_fingerprint, bool p_obfuscate) const;
 	static Error write_fingerprint(const String &p_fingerprint);
+
+	// res://.godot/grit/vm_functions.txt: one "<key>: <reason>" line per function that stays in the GDScript VM.
+	static String get_vm_functions_path();
+	static Error write_vm_functions(const Vector<String> &p_lines);
+	static void remove_vm_functions();
 };

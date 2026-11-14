@@ -223,12 +223,17 @@ Error GritProjectCompiler::compile(const String &p_output_directory, bool p_stri
 				writer.add_function(function);
 			} else {
 				print_line(vformat("Grit: %s::%s stays in the GDScript VM: %s.", source.path, function.name, function.unsupported_reason));
+				r_report.vm_functions.push_back(vformat("%s: %s", function.registry_key, function.unsupported_reason));
 			}
 		}
 	}
 	r_report.native_function_count = writer.get_function_count();
 
 	Error error = writer.write(p_output_directory, r_report.fingerprint, p_strip);
+	if (error != OK) {
+		return error;
+	}
+	error = GritSourceWriter::write_vm_functions(r_report.vm_functions);
 	if (error != OK) {
 		return error;
 	}
