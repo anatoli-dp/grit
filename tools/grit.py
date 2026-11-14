@@ -195,6 +195,8 @@ def game(arguments):
     ensure_engine_ready(engine, arguments.jobs, arguments.scons_arguments)
 
     name = arguments.name or project_name(project)
+    if name == ".." or Path(name).name != name:
+        sys.exit(f"--name {name!r} must be a plain name, not a path.")
     destination = Path(arguments.output).resolve() / name
     if destination.exists():
         shutil.rmtree(destination)
