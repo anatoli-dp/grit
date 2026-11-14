@@ -13,6 +13,7 @@
 #include "core/config/project_settings.h"
 #include "editor/editor_node.h"
 #include "editor/export/editor_export.h"
+#include "editor/export/editor_export_platform_pc.h"
 #endif
 
 static GritRegistry *grit_registry = nullptr;
@@ -58,6 +59,7 @@ void initialize_grit_module(ModuleInitializationLevel p_level) {
 	GLOBAL_DEF(PropertyInfo(Variant::STRING, GritExportPlugin::SETTING_GENERATED_DIRECTORY, PROPERTY_HINT_DIR), "res://.godot/grit/generated");
 	EditorNode::add_init_callback(grit_editor_init);
 	GDScriptCompiler::set_code_generator_factory(grit_create_code_generator);
+	EditorExportPlatformPC::template_override = GritExportPlugin::get_export_template;
 #else
 	if (grit_registry->is_active()) {
 		GDScriptCompiler::set_code_generator_factory(grit_create_code_generator);

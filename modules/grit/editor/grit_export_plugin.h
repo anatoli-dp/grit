@@ -22,6 +22,10 @@ public:
 	static constexpr const char *SETTING_ENABLED = "grit/export/enabled";
 	static constexpr const char *SETTING_GENERATED_DIRECTORY = "grit/export/generated_directory";
 	static constexpr const char *OPTION_STRIP_SCRIPTS = "grit/strip_scripts";
+	// Set by the grit tool for its own export, to the template it built (EditorExportPlatformPC::template_override).
+	static constexpr const char *ENV_EXPORT_TEMPLATE = "GRIT_EXPORT_TEMPLATE";
+
+	static String get_export_template(const Ref<EditorExportPreset> &p_preset, bool p_debug);
 
 	virtual String get_name() const override { return "Grit"; }
 };

@@ -8,7 +8,33 @@
 #include "modules/gdscript/gdscript_tokenizer_buffer.h"
 
 #include "core/config/project_settings.h"
+#include "core/io/dir_access.h"
+#include "core/io/file_access.h"
 #include "core/io/resource.h"
+#include "core/os/os.h"
+
+static void write_export_platform(const Ref<EditorExportPreset> &p_preset) {
+	const Ref<EditorExportPlatform> platform = p_preset->get_platform();
+	List<String> features;
+	platform->get_platform_features(&features);
+	Vector<String> tags;
+	for (const String &feature : features) {
+		tags.push_back(feature);
+	}
+	const String architecture = p_preset->get("binary_format/architecture");
+
+	ProjectSettings *settings = ProjectSettings::get_singleton();
+	const String path = settings->globalize_path(settings->get_project_data_path().path_join("grit").path_join("platform"));
+	Error error = DirAccess::make_dir_recursive_absolute(path.get_base_dir());
+	ERR_FAIL_COND_MSG(error != OK, vformat("Grit: could not create \"%s\".", path.get_base_dir()));
+	Ref<FileAccess> file = FileAccess::open(path, FileAccess::WRITE, &error);
+	ERR_FAIL_COND_MSG(file.is_null(), vformat("Grit: could not write \"%s\".", path));
+	file->store_string("platform_features=" + String(" ").join(tags) + "\narchitecture=" + architecture + "\n");
+}
+
+String GritExportPlugin::get_export_template(const Ref<EditorExportPreset> &p_preset, bool p_debug) {
+	return OS::get_singleton()->get_environment(ENV_EXPORT_TEMPLATE);
+}
 
 void GritExportPlugin::_get_export_options(const Ref<EditorExportPlatform> &p_export_platform, List<EditorExportPlatform::ExportOption> *r_options) const {
 	r_options->push_back(EditorExportPlatform::ExportOption(PropertyInfo(Variant::BOOL, OPTION_STRIP_SCRIPTS), false));
@@ -35,6 +61,10 @@ void GritExportPlugin::_export_begin(const HashSet<String> &p_features, bool p_d
 	if (error != OK) {
 		ERR_PRINT("Grit: native code generation failed, the exported project will use the GDScript VM.");
 		return;
+	}
+
+	if (preset.is_valid()) {
+		write_export_platform(preset);
 	}
 
 	stripped_sources = report.stripped_sources;

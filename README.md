@@ -143,6 +143,8 @@ ready-to-run game plus a `.tar.gz` archive into `build/games/<name>/`. `"Linux"`
 the project. Add `--target template_debug` for a debug build, `--output <dir>` to choose the location or `--no-archive`
 to skip the archive.
 
+The template is built for the preset's platform and architecture, so a Windows preset also works from Linux with MinGW.
+
 ### Exporting a project
 
 If you want the pack and template separately, use `export` instead:
