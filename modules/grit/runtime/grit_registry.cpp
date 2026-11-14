@@ -9,6 +9,8 @@
 #include "core/io/file_access.h"
 #include "core/os/os.h"
 
+#include "grit_build_identity.gen.inc"
+
 GritRegistry *GritRegistry::singleton = nullptr;
 
 String GritRegistry::make_class_path(const GDScript *p_script) {
@@ -39,8 +41,13 @@ String GritRegistry::get_fingerprint_path() {
 	return ProjectSettings::get_singleton()->get_project_data_path().path_join("grit").path_join("fingerprint");
 }
 
+String GritRegistry::get_build_identity() {
+	return GRIT_BUILD_IDENTITY;
+}
+
 String GritRegistry::make_pack_fingerprint(const String &p_fingerprint, bool p_is_stripped) {
-	return p_is_stripped ? p_fingerprint + "\n" + STRIPPED_FLAG : p_fingerprint;
+	const String record = p_fingerprint + "\n" + BUILD_IDENTITY_PREFIX + get_build_identity();
+	return p_is_stripped ? record + "\n" + STRIPPED_FLAG : record;
 }
 
 String GritRegistry::obfuscate_key(const String &p_key) {
@@ -112,6 +119,14 @@ bool GritRegistry::matches_project() const {
 			return false;
 		}
 		ERR_PRINT("Grit: GRIT_DISABLE is ignored because the scripts of this game were stripped at export.");
+	}
+
+	if (!pack_fingerprint.is_empty() && !pack_lines.has(BUILD_IDENTITY_PREFIX + get_build_identity())) {
+		if (is_stripped_pack) {
+			CRASH_NOW_MSG("Grit: the scripts of this game were stripped at export, but this executable was built from other Grit sources than the editor that exported them. Use the export template that was built together with this export.");
+		}
+		WARN_PRINT("Grit: this export template was built from other Grit sources than the editor that exported the game, using the GDScript VM. Build both from the same sources and export again.");
+		return false;
 	}
 
 	if (pack_fingerprint.is_empty() || pack_fingerprint != fingerprint) {

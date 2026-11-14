@@ -17,6 +17,7 @@ PATCH_DIRECTORY = ROOT / "patches" / GODOT_TAG
 DEFAULT_ENGINE = ROOT.parent / "godot-4.7"
 GENERATED_DIRECTORY = Path(".godot") / "grit" / "generated"
 FINGERPRINT_FILE = Path(".godot") / "grit" / "fingerprint"
+BUILD_IDENTITY_FILE = ROOT / "modules" / "grit" / "runtime" / "grit_build_identity.gen.inc"
 VM_FALLBACK_MESSAGE = "using the GDScript VM"
 STRIPPED_MESSAGE = "scripts of this game were stripped at export"
 SCRIPT_FAILURE_MESSAGES = ("Parse Error", "Compile Error", "Failed to load script")
@@ -145,6 +146,9 @@ def perform_export(engine, project, preset, output, target, jobs, scons_argument
     )
     build(build_arguments)
     binary = find_binary(engine, target, scons_arguments)
+    identity = BUILD_IDENTITY_FILE.read_text(encoding="utf-8").split('"')[1]
+    if not contains_bytes(editor, identity.encode()):
+        sys.exit(f"{editor} was built from other Grit sources than the template. Rebuild it: python tools/grit.py build editor")
     fingerprint = (project / FINGERPRINT_FILE).read_text(encoding="utf-8").strip()
     if not contains_bytes(binary, fingerprint.encode()):
         sys.exit(f"{binary} does not contain the native code of {project}. Delete it and export again.")

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from misc.utility.scons_hints import *
 
+import hashlib
 import os
 import re
 
@@ -78,7 +79,10 @@ def write_inline_catalog(path):
     lines += ["};", "", "static const ConstructorEntry constructor_entries[] = {"]
     lines += [f'\t{{ &{name}::ptr_construct, "{name}" }},' for name in inline_constructors()]
     lines.append("};")
-    content = "\n".join(lines) + "\n"
+    write_if_changed(path, "\n".join(lines) + "\n")
+
+
+def write_if_changed(path, content):
     if os.path.isfile(path):
         with open(path, encoding="utf-8") as file:
             if file.read() == content:
@@ -87,8 +91,30 @@ def write_inline_catalog(path):
         file.write(content)
 
 
+def build_identity():
+    root = os.path.dirname(os.path.dirname(Dir(".").srcnode().abspath))
+    files = []
+    for directory, extensions in (("modules/grit", (".cpp", ".h", ".py", "SCsub")), ("patches", (".patch",))):
+        for folder, folders, names in os.walk(os.path.join(root, directory)):
+            folders[:] = [name for name in folders if name != "tests"]
+            files += [os.path.join(folder, name) for name in names if name.endswith(extensions)]
+
+    digest = hashlib.sha256()
+    for path in sorted(files):
+        with open(path, "rb") as file:
+            content = file.read()
+        digest.update(f"{os.path.relpath(path, root)}\n{len(content)}\n".encode())
+        digest.update(content)
+    return digest.hexdigest()
+
+
 if env["grit_conformance"]:
     env_grit.Append(CPPDEFINES=["GRIT_CONFORMANCE"])
+
+write_if_changed(
+    os.path.join(Dir(".").srcnode().abspath, "runtime", "grit_build_identity.gen.inc"),
+    f'#define GRIT_BUILD_IDENTITY "{build_identity()}"\n',
+)
 
 env_grit.add_source_files(env.modules_sources, "*.cpp")
 env_grit.add_source_files(env.modules_sources, "runtime/*.cpp")

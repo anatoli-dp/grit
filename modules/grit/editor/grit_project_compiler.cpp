@@ -4,6 +4,7 @@
 
 #include "grit/compiler/grit_recording_code_generator.h"
 #include "grit/compiler/grit_source_writer.h"
+#include "grit/runtime/grit_registry.h"
 
 #include "modules/gdscript/gdscript.h"
 #include "modules/gdscript/gdscript_cache.h"
@@ -102,7 +103,7 @@ String GritProjectCompiler::compute_fingerprint(const Vector<ScriptSource> &p_so
 	CryptoCore::SHA256Context context;
 	context.start();
 
-	const CharString version = (String(GRIT_FORMAT_VERSION) + (p_strip ? "\nstripped" : "")).utf8();
+	const CharString version = (String(GRIT_FORMAT_VERSION) + "\n" + GritRegistry::get_build_identity() + (p_strip ? "\nstripped" : "")).utf8();
 	context.update(reinterpret_cast<const uint8_t *>(version.get_data()), version.length());
 	for (const ScriptSource &source : p_sources) {
 		const CharString header = vformat("\n%s\n%d\n", source.path, source.code.length()).utf8();

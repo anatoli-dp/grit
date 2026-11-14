@@ -11,6 +11,7 @@ class GDScript;
 class GritRegistry {
 public:
 	static constexpr const char *STRIPPED_FLAG = "stripped";
+	static constexpr const char *BUILD_IDENTITY_PREFIX = "build=";
 
 	typedef void (*ConstantsFactory)(const GDScript *p_script, Vector<Variant> &r_constants);
 
@@ -41,6 +42,8 @@ public:
 	static String make_key(const String &p_script_path, const StringName &p_function_name, int p_line);
 	static String make_lambda_key(const String &p_root_key, const StringName &p_function_name, int p_line, int p_ordinal);
 	static String get_fingerprint_path();
+	// A hash of the Grit sources this executable was built from (see SCsub).
+	static String get_build_identity();
 	static String make_pack_fingerprint(const String &p_fingerprint, bool p_is_stripped);
 	static String obfuscate_key(const String &p_key);
 
