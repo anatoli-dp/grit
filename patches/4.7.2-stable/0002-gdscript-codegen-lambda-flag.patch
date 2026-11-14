@@ -1,0 +1,24 @@
+diff --git a/modules/gdscript/gdscript_codegen.h b/modules/gdscript/gdscript_codegen.h
+index 84e4551eac..d1a7c0b025 100644
+--- a/modules/gdscript/gdscript_codegen.h
++++ b/modules/gdscript/gdscript_codegen.h
+@@ -88,6 +88,7 @@ public:
+ 	virtual void set_signature(const String &p_signature) = 0;
+ #endif
+ 	virtual void set_initial_line(int p_line) = 0;
++	virtual void set_lambda(bool p_lambda) {}
+ 
+ 	virtual void write_type_adjust(const Address &p_target, Variant::Type p_new_type) = 0;
+ 	virtual void write_unary_operator(const Address &p_target, Variant::Operator p_operator, const Address &p_left_operand) = 0;
+diff --git a/modules/gdscript/gdscript_compiler.cpp b/modules/gdscript/gdscript_compiler.cpp
+index fc3c42f1fa..2d9b1a6517 100644
+--- a/modules/gdscript/gdscript_compiler.cpp
++++ b/modules/gdscript/gdscript_compiler.cpp
+@@ -2305,6 +2305,7 @@ GDScriptFunction *GDScriptCompiler::_parse_function(Error &r_error, GDScript *p_
+ 	codegen.class_node = p_class;
+ 	codegen.script = p_script;
+ 	codegen.function_node = p_func;
++	codegen.generator->set_lambda(p_for_lambda);
+ 
+ 	StringName func_name;
+ 	bool is_abstract = false;

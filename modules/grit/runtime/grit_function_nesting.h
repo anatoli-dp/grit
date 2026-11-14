@@ -16,12 +16,21 @@ class GritFunctionNesting {
 
 	static inline thread_local GritFunctionNesting *current = nullptr;
 
+	GritFunctionNesting *previous = nullptr;
 	GritFunctionNesting *parent = nullptr;
 	GritFunctionNesting *root = this;
 	LocalVector<Entry> entries;
 	uint32_t debug_mark = 0;
 
 public:
+	// Only a lambda nests, under the generator open around it; any other function is a root.
+	void set_lambda(bool p_lambda) {
+		if (p_lambda && previous) {
+			parent = previous;
+			root = parent->root;
+		}
+	}
+
 	bool is_nested() const { return parent != nullptr; }
 
 	void add(const StringName &p_name, int p_line, Payload &&p_payload) {
@@ -61,15 +70,12 @@ public:
 	}
 
 	GritFunctionNesting() {
-		parent = current;
-		if (parent) {
-			root = parent->root;
-		}
+		previous = current;
 		current = this;
 	}
 
 	~GritFunctionNesting() {
-		current = parent;
+		current = previous;
 	}
 
 	GritFunctionNesting(const GritFunctionNesting &) = delete;

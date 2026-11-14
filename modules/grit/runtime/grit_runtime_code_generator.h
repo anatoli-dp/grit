@@ -23,6 +23,7 @@ public:
 	virtual uint32_t add_parameter(const StringName &p_name, bool p_is_optional, const GDScriptDataType &p_type) override;
 	virtual void write_start(GDScript *p_script, const StringName &p_function_name, bool p_static, Variant p_rpc_config, const GDScriptDataType &p_return_type) override;
 	virtual void set_initial_line(int p_line) override;
+	virtual void set_lambda(bool p_lambda) override { nesting.set_lambda(p_lambda); }
 	virtual void write_newline(int p_line) override;
 	virtual void write_assert(const Address &p_test, const Address &p_message) override;
 	virtual GDScriptFunction *write_end() override;
