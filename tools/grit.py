@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -198,17 +199,19 @@ def game(arguments):
     if name == ".." or Path(name).name != name:
         sys.exit(f"--name {name!r} must be a plain name, not a path.")
     destination = Path(arguments.output).resolve() / name
-    if destination.exists():
-        shutil.rmtree(destination)
-    destination.mkdir(parents=True)
+    destination.mkdir(parents=True, exist_ok=True)
 
-    pack = destination / f"{name}.pck"
-    executable = perform_export(engine, project, arguments.preset, pack, arguments.target, arguments.jobs, arguments.scons_arguments)
+    with tempfile.TemporaryDirectory(prefix=".grit-", dir=destination) as staging:
+        pack = Path(staging, name, f"{name}.pck")
+        executable = perform_export(engine, project, arguments.preset, pack, arguments.target, arguments.jobs, arguments.scons_arguments)
+        if not arguments.no_archive:
+            archive = shutil.make_archive(str(destination), "gztar", root_dir=staging, base_dir=name)
+        for source in pack.parent.iterdir():
+            os.replace(source, destination / source.name)
 
     print(f"\nGrit: packed game ready in {destination}")
-    print(f"  run it with: {executable}")
+    print(f"  run it with: {destination / executable.name}")
     if not arguments.no_archive:
-        archive = shutil.make_archive(str(destination), "gztar", root_dir=destination.parent, base_dir=name)
         print(f"  distributable archive: {archive}")
 
 
