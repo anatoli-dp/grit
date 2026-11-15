@@ -23,5 +23,6 @@ public:
 	static constexpr const char *SETTING_GENERATED_DIRECTORY = "grit/export/generated_directory";
 	static constexpr const char *OPTION_STRIP_SCRIPTS = "grit/strip_scripts";
 
-	virtual String get_name() const override { return "Grit"; }
+	// Export plugins run sorted by name: before "GDScript", so binary token exports get the stripped scripts.
+	virtual String get_name() const override { return "GDGrit"; }
 };
