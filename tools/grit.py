@@ -187,6 +187,20 @@ def ensure_engine_ready(engine, jobs, scons_arguments):
         build(argparse.Namespace(engine=str(engine), target="editor", jobs=jobs, generated=None, scons_arguments=editor_arguments(scons_arguments)))
 
 
+def preset_export_path(project, preset):
+    """The export path of the preset named `preset` in export_presets.cfg, or "" when it has none."""
+    presets = project / "export_presets.cfg"
+    if not presets.exists():
+        return ""
+    found = False
+    for line in presets.read_text(encoding="utf-8").splitlines():
+        if line == f'name="{preset}"':
+            found = True
+        elif found and line.startswith("export_path="):
+            return line.removeprefix("export_path=").strip('"')
+    return ""
+
+
 def game(arguments):
     engine = Path(arguments.engine).resolve()
     project = Path(arguments.project).resolve()
@@ -195,17 +209,21 @@ def game(arguments):
 
     ensure_engine_ready(engine, arguments.jobs, arguments.scons_arguments)
 
-    name = arguments.name or project_name(project)
+    export_path = "" if arguments.output else preset_export_path(project, arguments.preset)
+    name = arguments.name or (Path(export_path).stem if export_path else project_name(project))
     if name == ".." or Path(name).name != name:
         sys.exit(f"--name {name!r} must be a plain name, not a path.")
-    destination = Path(arguments.output).resolve() / name
+    if export_path:
+        destination = (project / export_path).parent.resolve()
+    else:
+        destination = Path(arguments.output or "build/games").resolve() / name
     destination.mkdir(parents=True, exist_ok=True)
 
     with tempfile.TemporaryDirectory(prefix=".grit-", dir=destination) as staging:
         pack = Path(staging, name, f"{name}.pck")
         executable = perform_export(engine, project, arguments.preset, pack, arguments.target, arguments.jobs, arguments.scons_arguments)
         if not arguments.no_archive:
-            archive = shutil.make_archive(str(destination), "gztar", root_dir=staging, base_dir=name)
+            archive = shutil.make_archive(str(destination / name if export_path else destination), "gztar", root_dir=staging, base_dir=name)
         for source in pack.parent.iterdir():
             os.replace(source, destination / source.name)
 
@@ -614,8 +632,8 @@ def main():
     game_parser = commands.add_parser("game", help="Build everything needed and produce a ready-to-run native game")
     game_parser.add_argument("project")
     game_parser.add_argument("preset")
-    game_parser.add_argument("--output", default="build/games", help="Directory to place the packed game in")
-    game_parser.add_argument("--name", help="Name of the game (defaults to the project name)")
+    game_parser.add_argument("--output", help="Directory to place the packed game in")
+    game_parser.add_argument("--name", help="Name of the game (defaults to the project name, or the export path's file name when the game goes there)")
     game_parser.add_argument("--target", default="template_release", choices=["template_debug", "template_release"])
     game_parser.add_argument("--jobs", type=int, default=os.cpu_count() or 1)
     game_parser.add_argument("--no-archive", action="store_true", help="Skip building the .tar.gz archive")

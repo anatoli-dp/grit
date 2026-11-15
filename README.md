@@ -141,7 +141,8 @@ This is the whole flow in one step. It checks out and patches Godot and builds t
 yet, exports the project (which generates the native C++), builds the export template with that code, and writes a
 ready-to-run game plus a `.tar.gz` archive into `build/games/<name>/`. `"Linux"` is the name of an export preset of
 the project. Add `--target template_debug` for a debug build, `--output <dir>` to choose the location or `--no-archive`
-to skip the archive.
+to skip the archive. Without `--output`, a preset with an export path puts the game and the archive in that path's
+folder instead, named after its file.
 
 ### Exporting a project
 
